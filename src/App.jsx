@@ -1,19 +1,15 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { Grav, Tag, Btn, EField, ConfBar } from './components';
 import { loadMissionsIndex, saveMissionsIndex, loadMission, saveMission, deleteMission, savePhoto, loadPhoto, deletePhotos } from './storage';
-import { analyzePhotos, generateSynthesis } from './api';
-import { buildAnalysisPrompt, SYNTHESIS_PROMPT } from './prompts';
+import { analyzeBatch, generateSynthesis } from './api';
+import { buildBatchAnalysisPrompt, SYNTHESIS_PROMPT } from './prompts';
 import { exportToWord } from './export';
 import { GRAVITE, RECO, GRAV_OPTIONS, EVO_OPTIONS, IMPACT_OPTIONS, RECO_OPTIONS, bg0, bg1, bg2, bdr, bdr2, tx0, tx1, tx2, accent, accent2, mono } from './theme';
 
-// ═══ PHOTO CELL (ungrouped pool) ═══
-const PhotoCell = memo(function PhotoCell({ photo, selected, onToggle }) {
+// ═══ PHOTO CELL (pool) ═══
+const PhotoCell = memo(function PhotoCell({ photo, dimmed }) {
   return (
-    <div onClick={() => onToggle(photo.id)} style={{
-      aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer',
-      border: selected ? `2px solid ${accent}` : '2px solid transparent',
-      opacity: selected ? 1 : 0.7,
-    }}>
+    <div style={{ aspectRatio: '1', borderRadius: 4, overflow: 'hidden', opacity: dimmed ? 0.4 : 1, transition: 'opacity .2s' }}>
       <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     </div>
   );
@@ -223,22 +219,12 @@ export default function App() {
   const [gs, setGs] = useState(false);
   const [dg, setDg] = useState(false);
   const [ungrouped, setUngrouped] = useState([]);
-  const [selUG, setSelUG] = useState(new Set());
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState('');
   const fr = useRef();
-  const pr = useRef(false);
-  const qr = useRef([]);
 
-  // Stable callback : évite que les 50 ConstatCard rerendent à chaque sélection
+  // Stable callback : évite que les ConstatCard rerendent à chaque sélection
   const handleSelect = useCallback((i) => setSel(i), []);
-
-  // Stable toggle : évite que les 50 PhotoCell rerendent à chaque cochage
-  const togglePhotoSel = useCallback((id) => {
-    setSelUG((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  }, []);
 
   // Load missions on mount
   useEffect(() => { setMs(loadMissionsIndex()); }, []);
@@ -269,31 +255,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, [constats, cx, syn, cm, scr]);
 
-  // Queue processor
-  const processQueue = useCallback(async () => {
-    if (pr.current) return;
-    pr.current = true;
-    while (qr.current.length > 0) {
-      const id = qr.current[0];
-      setConstats((p) => p.map((c) => c.id === id ? { ...c, status: 'analyzing' } : c));
-      try {
-        const con = await new Promise((r) => { setConstats((p) => { r(p.find((c) => c.id === id)); return p; }); });
-        const files = con.photos.map((p) => p.file).filter(Boolean);
-        if (!files.length) throw new Error('Pas de photos avec fichier');
-        const result = await analyzePhotos(files, buildAnalysisPrompt(cx), apiKey, engine);
-        // Save photos to IndexedDB
-        for (const ph of con.photos) {
-          if (ph.file && ph.id) await savePhoto(ph.id, ph.file);
-        }
-        setConstats((p) => p.map((c) => c.id === id ? { ...c, status: 'done', fiche: result, timestamp: Date.now() } : c));
-      } catch (err) {
-        setConstats((p) => p.map((c) => c.id === id ? { ...c, status: 'error', error: err.message } : c));
-      }
-      qr.current.shift();
-    }
-    pr.current = false;
-  }, [cx, apiKey]);
-
   // Add photos to pool
   const addPhotos = useCallback((files) => {
     const newP = Array.from(files)
@@ -302,33 +263,40 @@ export default function App() {
     setUngrouped((p) => [...p, ...newP]);
   }, []);
 
-  // Create constat from selected photos
-  const createConstat = useCallback((photoIds) => {
-    const ids = photoIds?.size > 0 ? photoIds : new Set(ungrouped.map((p) => p.id));
-    const photos = ungrouped.filter((p) => ids.has(p.id));
-    if (!photos.length) return;
-    const id = 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
-    setConstats((p) => [...p, { id, photos, fiche: null, status: 'pending', validated: false, error: null, timestamp: Date.now() }]);
-    setUngrouped((p) => p.filter((ph) => !ids.has(ph.id)));
-    setSelUG(new Set());
-    qr.current.push(id);
-    setTimeout(processQueue, 50);
-  }, [ungrouped, processQueue]);
-
-  // Auto-create 1:1 — batch en un seul setConstats au lieu de N appels successifs
-  const autoCreate = useCallback(() => {
-    if (!ungrouped.length) return;
-    const ts = Date.now();
-    const newConstats = ungrouped.map((ph) => ({
-      id: 'c' + ts + Math.random().toString(36).slice(2, 6) + ph.id.slice(-4),
-      photos: [ph], fiche: null, status: 'pending', validated: false, error: null, timestamp: ts,
-    }));
-    setConstats((p) => [...p, ...newConstats]);
-    qr.current.push(...newConstats.map((c) => c.id));
-    setUngrouped([]);
-    setSelUG(new Set());
-    setTimeout(processQueue, 50);
-  }, [ungrouped, processQueue]);
+  // Batch analysis : envoie TOUTES les photos du pool en un seul appel IA,
+  // l'IA regroupe par désordre distinct → on crée 1 constat par désordre identifié
+  const analyzePool = useCallback(async () => {
+    if (analyzing) return;
+    const batch = ungrouped;
+    if (!batch.length) return;
+    const ids = new Set(batch.map((p) => p.id));
+    setAnalyzing(true);
+    setAnalyzeError('');
+    try {
+      const files = batch.map((p) => p.file).filter(Boolean);
+      if (!files.length) throw new Error('Aucune photo avec fichier');
+      const result = await analyzeBatch(files, buildBatchAnalysisPrompt(cx), apiKey, engine);
+      const ts = Date.now();
+      const newConstats = result.map((r, i) => ({
+        id: 'b' + ts + '_' + i,
+        photos: r.photo_indices.map((idx) => batch[idx]).filter(Boolean),
+        fiche: r.fiche,
+        status: 'done', validated: false, error: null, timestamp: ts,
+      })).filter((c) => c.photos.length > 0);
+      // Persist photos to IndexedDB
+      for (const c of newConstats) {
+        for (const ph of c.photos) {
+          if (ph.file && ph.id) await savePhoto(ph.id, ph.file);
+        }
+      }
+      setConstats((p) => [...p, ...newConstats]);
+      setUngrouped((p) => p.filter((ph) => !ids.has(ph.id)));
+    } catch (e) {
+      setAnalyzeError(e.message || 'Erreur d analyse');
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [ungrouped, cx, apiKey, engine, analyzing]);
 
   // Mission actions
   const startMission = () => {
@@ -380,8 +348,8 @@ export default function App() {
   };
 
   const goHome = () => {
-    qr.current = []; pr.current = false;
     setCm(null); setConstats([]); setUngrouped([]); setSel(null);
+    setAnalyzing(false); setAnalyzeError('');
     setMs(loadMissionsIndex());
     setScr('home');
   };
@@ -398,7 +366,6 @@ export default function App() {
     setGs(false);
   };
 
-  const an = constats.filter((c) => c.status === 'analyzing' || c.status === 'pending').length;
   const done = constats.filter((c) => c.fiche);
 
   const inputBase = { width: '100%', padding: '10px 14px', background: bg1, border: `1px solid ${bdr2}`, borderRadius: 8, color: tx0, fontSize: 13, outline: 'none' };
@@ -414,7 +381,7 @@ export default function App() {
         <span style={{ fontSize: 10, color: tx2, background: bg2, padding: '2px 8px', borderRadius: 10 }}>Desktop</span>
         {scr === 'mission' && <><div style={{ width: 1, height: 20, background: bdr2 }} /><span style={{ fontSize: 12, color: tx1 }}>{nm}</span></>}
         <div style={{ flex: 1 }} />
-        {an > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 14, background: `${accent}15` }}><div style={{ width: 8, height: 8, borderRadius: 4, border: `2px solid ${accent}`, borderTopColor: 'transparent', animation: 'spin .8s linear infinite' }} /><span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>{an} en cours</span></div>}
+        {analyzing && <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 14, background: `${accent}15` }}><div style={{ width: 8, height: 8, borderRadius: 4, border: `2px solid ${accent}`, borderTopColor: 'transparent', animation: 'spin .8s linear infinite' }} /><span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>Analyse en cours…</span></div>}
         {scr === 'mission' && done.length > 0 && <>
           <Btn small onClick={genSynthesis} disabled={gs}>{gs ? '...' : '✨ Synthèse'}</Btn>
           <Btn small onClick={() => exportToWord(nm, op, cx, constats, syn)}>📄 Word</Btn>
@@ -491,21 +458,25 @@ export default function App() {
           <div style={{ display: 'flex', height: 'calc(100vh - 48px)' }}>
             {/* LEFT PANEL */}
             <div style={{ width: 320, borderRight: `1px solid ${bdr}`, display: 'flex', flexDirection: 'column', background: bg1, flexShrink: 0 }}>
-              {/* Ungrouped pool */}
+              {/* Pool : photos importées en attente d'analyse batch */}
               {ungrouped.length > 0 && (
                 <div style={{ borderBottom: `1px solid ${bdr}`, padding: 12 }}>
-                  <div style={{ fontSize: 10, color: tx2, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Photos à trier ({ungrouped.length})</span>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <Btn small onClick={() => createConstat(selUG)} disabled={selUG.size === 0}>Grouper ({selUG.size})</Btn>
-                      <Btn small onClick={autoCreate}>1:1</Btn>
-                    </div>
+                  <div style={{ fontSize: 10, color: tx2, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
+                    {analyzing ? `Analyse de ${ungrouped.length} photo${ungrouped.length > 1 ? 's' : ''}…` : `À analyser (${ungrouped.length})`}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, maxHeight: 140, overflowY: 'auto', marginBottom: 8 }}>
                     {ungrouped.map((p) => (
-                      <PhotoCell key={p.id} photo={p} selected={selUG.has(p.id)} onToggle={togglePhotoSel} />
+                      <PhotoCell key={p.id} photo={p} dimmed={analyzing} />
                     ))}
                   </div>
+                  {analyzeError && (
+                    <div style={{ fontSize: 11, color: '#fca5a5', background: '#991b1b22', border: '1px solid #991b1b44', borderRadius: 6, padding: '6px 8px', marginBottom: 8 }}>
+                      {analyzeError}
+                    </div>
+                  )}
+                  <Btn primary onClick={analyzePool} disabled={analyzing} style={{ width: '100%', padding: 10, fontSize: 13 }}>
+                    {analyzing ? '⟳ Analyse en cours…' : analyzeError ? '↻ Réessayer' : `✨ Analyser ${ungrouped.length} photo${ungrouped.length > 1 ? 's' : ''}`}
+                  </Btn>
                 </div>
               )}
 

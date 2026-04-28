@@ -10,6 +10,73 @@ function fileToBase64(file) {
   });
 }
 
+function extractJSONArray(text) {
+  if (!text || typeof text !== 'string') return null;
+  var cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Tentative directe
+  try {
+    var direct = JSON.parse(cleaned);
+    if (Array.isArray(direct)) return direct;
+    if (direct && Array.isArray(direct.results)) return direct.results;
+    if (direct && Array.isArray(direct.fiches)) return direct.fiches;
+  } catch (e) {}
+  // Extraction bracket-aware (gere les chaines avec guillemets echappes)
+  var start = cleaned.indexOf('[');
+  if (start === -1) return null;
+  var depth = 0, inStr = false, esc = false;
+  for (var i = start; i < cleaned.length; i++) {
+    var c = cleaned[i];
+    if (esc) { esc = false; continue; }
+    if (inStr) {
+      if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+    } else {
+      if (c === '"') inStr = true;
+      else if (c === '[') depth++;
+      else if (c === ']') {
+        depth--;
+        if (depth === 0) {
+          try {
+            var p = JSON.parse(cleaned.substring(start, i + 1));
+            return Array.isArray(p) ? p : null;
+          } catch (e2) { return null; }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function validateBatch(arr, n) {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  var out = [];
+  for (var i = 0; i < arr.length; i++) {
+    var item = arr[i];
+    var rawIndices = (item && Array.isArray(item.photo_indices)) ? item.photo_indices : [];
+    var indices = rawIndices.filter(function(idx) { return Number.isInteger(idx) && idx >= 0 && idx < n; });
+    var ficheRaw = (item && item.fiche) ? item.fiche : item;
+    var fiche = validateFiche(ficheRaw);
+    if (!fiche || indices.length === 0) continue;
+    out.push({ photo_indices: indices, fiche: fiche });
+  }
+  if (out.length === 0) return null;
+  // Couvrir les photos orphelines
+  var covered = {};
+  for (var k = 0; k < out.length; k++) {
+    for (var m = 0; m < out[k].photo_indices.length; m++) covered[out[k].photo_indices[m]] = true;
+  }
+  var orphans = [];
+  for (var p = 0; p < n; p++) if (!covered[p]) orphans.push(p);
+  if (orphans.length > 0) {
+    out.push({ photo_indices: orphans, fiche: validateFiche({
+      synthese: 'Photo(s) non rattachee(s) automatiquement, a examiner manuellement.',
+      gravite_globale: 1, recommandation_globale: 'investigation',
+      desordres: [], confiance: { score: 0.3, limites: 'Photo(s) orpheline(s) apres regroupement IA.' }
+    }) });
+  }
+  return out;
+}
+
 function extractJSON(text) {
   if (!text || typeof text !== 'string') return null;
   var cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -145,6 +212,17 @@ function demoFiche(n) {
   };
 }
 
+function demoBatch(n) {
+  // Simule 1-3 desordres distincts repartis sur les n photos
+  var k = Math.min(n, Math.max(1, Math.floor(Math.random() * 3) + 1));
+  var groups = [];
+  for (var g = 0; g < k; g++) groups.push([]);
+  for (var i = 0; i < n; i++) groups[i % k].push(i);
+  return groups.map(function(indices) {
+    return { photo_indices: indices, fiche: demoFiche(indices.length) };
+  });
+}
+
 function demoSynthesis(name, n) {
   return '1. ETAT GENERAL\n\nMission "' + name + '" : ' + n + ' constats analyses. Pathologies diverses.\n\n2. DESORDRES PRINCIPAUX\n\nFissurations, eclatements, corrosion, infiltrations.\n\n3. ZONES CRITIQUES\n\nElements porteurs avec armatures apparentes.\n\n4. RECOMMANDATIONS\n\n- Court terme : mise en securite\n- Moyen terme : investigations\n- Long terme : reparations\n\n5. CONCLUSION\n\nMODE DEMO - Synthese fictive.';
 }
@@ -209,6 +287,83 @@ async function callGemini(files, systemPrompt, apiKey) {
   } catch (e) {
     throw new Error('Gemini: ' + e.message);
   }
+}
+
+async function callBatchClaude(files, systemPrompt, apiKey) {
+  try {
+    var content = [];
+    for (var i = 0; i < files.length; i++) {
+      var b64 = await fileToBase64(files[i]);
+      content.push({ type: 'text', text: 'Photo ' + i + ':' });
+      content.push({ type: 'image', source: { type: 'base64', media_type: files[i].type || 'image/jpeg', data: b64 } });
+    }
+    content.push({ type: 'text', text: files.length + ' photos. Identifie les desordres distincts (regroupe les photos qui montrent le meme). Renvoie UNIQUEMENT l array JSON.' });
+    var resp = await fetch(CLAUDE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 8000, system: systemPrompt, messages: [{ role: 'user', content: content }] })
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Erreur API Claude');
+    var text = '';
+    if (data.content) {
+      for (var j = 0; j < data.content.length; j++) {
+        if (data.content[j].text) text += data.content[j].text;
+      }
+    }
+    var arr = extractJSONArray(text);
+    if (!arr) throw new Error('Impossible de parser le batch Claude');
+    var validated = validateBatch(arr, files.length);
+    if (!validated) throw new Error('Batch Claude invalide');
+    return validated;
+  } catch (e) {
+    throw new Error('Claude batch: ' + e.message);
+  }
+}
+
+async function callBatchGemini(files, systemPrompt, apiKey) {
+  try {
+    var parts = [{ text: systemPrompt + ' Photos numerotees 0..' + (files.length - 1) + ', dans l ordre ci-dessous.' }];
+    for (var i = 0; i < files.length; i++) {
+      var b64 = await fileToBase64(files[i]);
+      parts.push({ text: 'Photo ' + i + ':' });
+      parts.push({ inlineData: { mimeType: files[i].type || 'image/jpeg', data: b64 } });
+    }
+    var resp = await fetch(GEMINI_URL + '?key=' + apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: parts }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 16384, responseMimeType: 'application/json' }
+      })
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Erreur API Gemini');
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+      throw new Error('Reponse Gemini vide');
+    }
+    var text = '';
+    for (var j = 0; j < data.candidates[0].content.parts.length; j++) {
+      if (data.candidates[0].content.parts[j].text) text += data.candidates[0].content.parts[j].text;
+    }
+    var arr = extractJSONArray(text);
+    if (!arr) throw new Error('Impossible de parser le batch Gemini. Reponse: ' + text.substring(0, 300));
+    var validated = validateBatch(arr, files.length);
+    if (!validated) throw new Error('Batch Gemini invalide');
+    return validated;
+  } catch (e) {
+    throw new Error('Gemini batch: ' + e.message);
+  }
+}
+
+export async function analyzeBatch(files, systemPrompt, apiKey, engine) {
+  if (!files || files.length === 0) throw new Error('Aucune photo a analyser');
+  if (!engine || engine === 'demo' || !apiKey || apiKey.trim() === '') {
+    await new Promise(function(r) { setTimeout(r, 2000 + Math.random() * 2000); });
+    return demoBatch(files.length);
+  }
+  if (engine === 'gemini') return await callBatchGemini(files, systemPrompt, apiKey);
+  return await callBatchClaude(files, systemPrompt, apiKey);
 }
 
 export async function analyzePhotos(files, systemPrompt, apiKey, engine) {
