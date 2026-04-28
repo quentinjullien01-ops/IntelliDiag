@@ -115,9 +115,13 @@ npm run build     # build → dist/
 npm run preview   # preview le build local
 ```
 
-`base: '/IntelliDiag/'` est codé en dur dans [vite.config.js](vite.config.js) — cohérent avec une URL `https://<user>.github.io/IntelliDiag/`.
+`base: '/IntelliDiag/'` est codé en dur dans [vite.config.js](vite.config.js) — cohérent avec l'URL de prod `https://quentinjullien01-ops.github.io/IntelliDiag/`.
 
-⚠️ **Pas de script `deploy`** depuis v1.2 (la dépendance `gh-pages` a été supprimée). Déploiement à faire manuellement ou via une GitHub Action à créer (pas encore en place).
+**Déploiement automatique** via GitHub Actions ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)) :
+- Trigger : push sur `main` (ou déclenchement manuel via `workflow_dispatch`)
+- Pipeline : `npm ci` → `npm run build` → upload `dist/` comme artifact Pages → `actions/deploy-pages@v4`
+- Pages source côté repo Settings : **"GitHub Actions"** (à NE PAS rebasculer sur "Deploy from a branch")
+- Pas besoin de `npm run deploy` ni du package `gh-pages` — supprimés en v1.2.
 
 ## Optimisations perf en place
 À ne pas défaire en passant — ces patterns sont là pour scaler à 50+ photos :
