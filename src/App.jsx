@@ -79,33 +79,11 @@ const EditableDesordre = memo(function EditableDesordre({ d, di, updDes }) {
 
 // ═══ FICHE PANEL ═══
 function FichePanel({ constat: c, index, onUpdate, onValidate }) {
+  // ⚠ Tous les hooks DOIVENT être appelés avant tout early return (Rules of Hooks).
   const [photoIdx, setPhotoIdx] = useState(0);
   useEffect(() => { setPhotoIdx(0); }, [c?.id]);
 
-  if (!c) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: tx2, fontSize: 14 }}>Sélectionnez un constat</div>;
-
-  if (c.status === 'pending' || c.status === 'analyzing') return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10 }}>
-      <div style={{ width: 16, height: 16, borderRadius: 8, border: `2px solid ${accent}`, borderTopColor: 'transparent', animation: 'spin .8s linear infinite' }} />
-      <span style={{ color: tx1 }}>{c.status === 'pending' ? 'En attente...' : 'Analyse en cours...'}</span>
-    </div>
-  );
-
-  if (c.status === 'error') return (
-    <div style={{ padding: 24 }}>
-      <div style={{ background: '#991b1b22', border: '1px solid #991b1b44', borderRadius: 8, padding: 16 }}>
-        <p style={{ color: '#fca5a5', fontSize: 13, margin: 0 }}>Erreur : {c.error}</p>
-      </div>
-    </div>
-  );
-
-  const f = c.fiche;
-  if (!f) return null;
-  const g = GRAVITE[f.gravite_globale] || GRAVITE[1];
-  const r = RECO[f.recommandation_globale] || { label: '', icon: '📋' };
-
-  // Refs pour garder upd/updDes stables malgré les changements de f/onUpdate.
-  // Sans ça, EditableDesordre (memo) rerend tous les désordres à chaque keystroke.
+  const f = c?.fiche || null;
   const fRef = useRef(f);
   const onUpdateRef = useRef(onUpdate);
   fRef.current = f;
@@ -113,6 +91,7 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
 
   const upd = useCallback((path, val) => {
     const cur = fRef.current;
+    if (!cur) return;
     const parts = path.split('.');
     if (parts.length === 1) {
       onUpdateRef.current({ ...cur, [path]: val });
@@ -130,6 +109,7 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
 
   const updDes = useCallback((di, path, val) => {
     const cur = fRef.current;
+    if (!cur) return;
     const parts = path.split('.');
     const newDesordres = cur.desordres.map((d, i) => {
       if (i !== di) return d;
@@ -145,6 +125,37 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
     });
     onUpdateRef.current({ ...cur, desordres: newDesordres });
   }, []);
+
+  // Early returns — APRÈS tous les hooks.
+  if (!c) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
+      <div style={{ fontFamily: mono, fontSize: 9, color: tx2, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
+        Aucun constat sélectionné
+      </div>
+      <div style={{ fontSize: 14, color: tx1, fontWeight: 500, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
+        Sélectionnez une fiche dans la liste à gauche pour la consulter, la corriger et la valider.
+      </div>
+    </div>
+  );
+
+  if (c.status === 'pending' || c.status === 'analyzing') return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10 }}>
+      <div style={{ width: 16, height: 16, borderRadius: 8, border: `2px solid ${accent}`, borderTopColor: 'transparent', animation: 'spin .8s linear infinite' }} />
+      <span style={{ color: tx1 }}>{c.status === 'pending' ? 'En attente...' : 'Analyse en cours...'}</span>
+    </div>
+  );
+
+  if (c.status === 'error') return (
+    <div style={{ padding: 24 }}>
+      <div style={{ background: '#991b1b22', border: '1px solid #991b1b44', borderRadius: 8, padding: 16 }}>
+        <p style={{ color: '#fca5a5', fontSize: 13, margin: 0 }}>Erreur : {c.error}</p>
+      </div>
+    </div>
+  );
+
+  if (!f) return null;
+  const g = GRAVITE[f.gravite_globale] || GRAVITE[1];
+  const r = RECO[f.recommandation_globale] || { label: '', icon: '📋' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -166,19 +177,25 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
       {/* Fiche content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
         {/* Header + validate */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: mono, fontSize: 12, color: tx2 }}>CONSTAT #{String(index + 1).padStart(3, '0')}</span>
-            <Grav v={f.gravite_globale} size={24} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <span style={{ fontFamily: mono, fontSize: 11, color: tx2, letterSpacing: 0.5, textTransform: 'uppercase', flexShrink: 0 }}>
+              Constat #{String(index + 1).padStart(3, '0')}
+            </span>
+            <Grav v={f.gravite_globale} size={26} />
             <Tag>{c.photos.length} photo{c.photos.length > 1 ? 's' : ''}</Tag>
           </div>
           <button onClick={onValidate} style={{
-            padding: '6px 14px', borderRadius: 6,
-            border: c.validated ? '1.5px solid #22c55e' : `1.5px solid ${bdr2}`,
+            padding: '8px 14px', borderRadius: 7,
+            border: c.validated ? '1.5px solid #22c55e' : `1px solid ${bdr2}`,
             background: c.validated ? '#22c55e18' : bg2,
-            color: c.validated ? '#22c55e' : tx1,
-            fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>
+            color: c.validated ? '#22c55e' : tx0,
+            fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'all .15s',
+            display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { if (!c.validated) e.currentTarget.style.borderColor = `${accent}55`; }}
+          onMouseLeave={(e) => { if (!c.validated) e.currentTarget.style.borderColor = bdr2; }}>
             {c.validated ? '✓ Validé' : 'Valider la fiche'}
           </button>
         </div>
@@ -201,6 +218,22 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
       </div>
     </div>
   );
+}
+
+// ═══ DATE HELPER ═══
+function fmtRelDate(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  const hr = Math.floor(min / 60);
+  const day = Math.floor(hr / 24);
+  if (min < 1) return 'à l\'instant';
+  if (min < 60) return 'il y a ' + min + ' min';
+  if (hr < 24) return 'il y a ' + hr + ' h';
+  if (day < 7) return 'il y a ' + day + ' j';
+  if (day < 30) return 'il y a ' + Math.floor(day / 7) + ' sem';
+  if (day < 365) return 'il y a ' + Math.floor(day / 30) + ' mois';
+  const y = Math.floor(day / 365);
+  return 'il y a ' + y + ' an' + (y > 1 ? 's' : '');
 }
 
 // ═══ MAIN APP ═══
@@ -398,58 +431,200 @@ export default function App() {
 
         {/* HOME */}
         {scr === 'home' && (
-          <div style={{ maxWidth: 600, margin: '0 auto', padding: '48px 24px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 36 }}>
-              <div style={{ fontSize: 52, opacity: 0.5 }}>🏗</div>
-              <h1 style={{ fontSize: 28, fontWeight: 700, margin: '8px 0' }}>DiagIA Desktop</h1>
-              <p style={{ color: tx2, fontSize: 14 }}>Diagnostic structurel — Traitement post-mission</p>
+          <div style={{ maxWidth: 600, margin: '0 auto', padding: '72px 24px 56px' }}>
+
+            {/* Wordmark — hero brand moment */}
+            <div style={{ marginBottom: 56 }}>
+              <h1 style={{ fontSize: 64, fontWeight: 700, margin: 0, letterSpacing: -2, color: tx0, lineHeight: 0.95 }}>
+                DiagIA<span style={{ color: accent }}>.</span>
+              </h1>
+              <div style={{ marginTop: 12, fontFamily: mono, fontSize: 10, color: tx2, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                v1.2 &nbsp;·&nbsp; post-mission &nbsp;·&nbsp; 100% local
+              </div>
+              <p style={{ color: tx1, fontSize: 14, margin: '24px 0 0', lineHeight: 1.55, maxWidth: 480 }}>
+                Importez les photos d'une mission, l'IA propose les fiches de constat, vous validez, vous exportez. Aucun cloud.
+              </p>
             </div>
 
             {/* Engine + API Key */}
-            <div style={{ marginBottom: 24, padding: 16, background: bg1, borderRadius: 10, border: `1px solid ${bdr2}` }}>
+            <div style={{ marginBottom: 28, padding: 18, background: bg1, borderRadius: 10, border: `1px solid ${bdr2}` }}>
               <label style={labelStyle}>Moteur IA</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                {[{v:'demo',l:'Demo (gratuit)'},{v:'gemini',l:'Gemini (gratuit)'},{v:'claude',l:'Claude (payant)'}].map(o => (
-                  <button key={o.v} onClick={() => setEngine(o.v)} style={{ flex: 1, padding: '8px', borderRadius: 6, border: engine === o.v ? `2px solid ${accent}` : `1px solid ${bdr2}`, background: engine === o.v ? `${accent}15` : bg2, color: engine === o.v ? accent : tx1, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{o.l}</button>
-                ))}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {[
+                  { v: 'demo', l: 'Demo', t: 'OFFLINE' },
+                  { v: 'gemini', l: 'Gemini', t: 'GOOGLE' },
+                  { v: 'claude', l: 'Claude', t: 'ANTHROPIC' },
+                ].map(o => {
+                  const sel = engine === o.v;
+                  return (
+                    <button key={o.v} onClick={() => setEngine(o.v)} style={{
+                      flex: 1, padding: '12px 12px 14px', borderRadius: 7,
+                      border: sel ? `1px solid ${accent}66` : `1px solid ${bdr2}`,
+                      background: sel ? `${accent}14` : bg2,
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      position: 'relative',
+                      transition: 'all .15s',
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                    }}>
+                      <span style={{ fontSize: sel ? 14 : 13, fontWeight: 700, color: sel ? tx0 : tx1, transition: 'all .15s' }}>{o.l}</span>
+                      <span style={{ fontFamily: mono, fontSize: 9, color: sel ? accent : tx2, letterSpacing: 0.8, fontWeight: 500 }}>{o.t}</span>
+                      {sel && <span style={{ position: 'absolute', top: 9, right: 9, width: 6, height: 6, borderRadius: 3, background: accent }} />}
+                    </button>
+                  );
+                })}
               </div>
-              {engine !== 'demo' && <>
-                <label style={labelStyle}>{engine === 'gemini' ? 'Cle API Google Gemini' : 'Cle API Anthropic'}</label>
-                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={engine === 'gemini' ? 'AIza...' : 'sk-ant-...'} style={inputBase} />
-                <p style={{ fontSize: 10, color: tx2, marginTop: 6 }}>{engine === 'gemini' ? 'Gratuit ! Creez votre cle sur ai.google.dev' : 'Payant. Cle sur console.anthropic.com'}</p>
-              </>}
-              {engine === 'demo' && <p style={{ fontSize: 11, color: accent }}>Mode demo actif — donnees fictives realistes, pas besoin de cle API.</p>}
+
+              {engine === 'demo' && (
+                <p style={{ fontSize: 12, color: tx1, lineHeight: 1.5, margin: 0 }}>
+                  Génère des fiches fictives réalistes, sans clé. Idéal pour tester le flux ou faire une démo.
+                </p>
+              )}
+              {engine !== 'demo' && (
+                <div>
+                  <p style={{ fontSize: 12, color: tx1, lineHeight: 1.5, margin: '0 0 10px' }}>
+                    {engine === 'gemini'
+                      ? 'Modèle gratuit (Google). Créez une clé sur ai.google.dev.'
+                      : 'Modèle payant (Anthropic). Créez une clé sur console.anthropic.com.'}
+                  </p>
+                  <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={engine === 'gemini' ? 'AIza...' : 'sk-ant-...'}
+                    style={{ ...inputBase, fontFamily: mono, fontSize: 12 }} />
+                </div>
+              )}
             </div>
 
-            <Btn primary onClick={() => { setNm(''); setOp(''); setCx(''); setSyn(''); setScr('setup'); }} style={{ width: '100%', padding: 16, fontSize: 16, marginBottom: 32 }}>+ Nouvelle mission</Btn>
+            {/* CTA — bolder, with arrow momentum */}
+            <button onClick={() => { setNm(''); setOp(''); setCx(''); setSyn(''); setScr('setup'); }}
+              style={{
+                width: '100%', padding: '18px 22px', border: 'none', borderRadius: 8,
+                background: `linear-gradient(135deg, ${accent}, ${accent2})`,
+                color: '#f0eeeb', fontFamily: 'inherit', fontSize: 16, fontWeight: 700, letterSpacing: -0.2,
+                cursor: 'pointer', marginBottom: 56,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                transition: 'filter .15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}>
+              <span>Nouvelle mission</span>
+              <span style={{ fontSize: 22, fontWeight: 400, opacity: 0.85 }}>→</span>
+            </button>
 
-            {ms.length > 0 && <>
-              <div style={labelStyle}>Missions ({ms.length})</div>
-              {ms.map((m) => (
-                <div key={m.id} onClick={() => resumeMission(m.id)} style={{ background: bg1, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
-                  <span style={{ fontSize: 18 }}>🏗</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{m.name}</div>
-                    <div style={{ fontSize: 11, color: tx2 }}>{new Date(m.updated_at).toLocaleDateString('fr-FR')} — {m.nb_fiches} fiche{m.nb_fiches > 1 ? 's' : ''} · {m.nb_desordres || 0} désordre{(m.nb_desordres || 0) > 1 ? 's' : ''}</div>
+            {/* Missions */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16, padding: '0 2px' }}>
+              <span style={{ ...labelStyle, marginBottom: 0, fontSize: 10, letterSpacing: 1.5 }}>Missions</span>
+              <span style={{ fontFamily: mono, fontSize: 11, color: tx1, fontWeight: 600 }}>{ms.length}</span>
+            </div>
+
+            {ms.length === 0 ? (
+              <div style={{ padding: '32px 20px', borderRadius: 10, border: `1px dashed ${bdr2}`, textAlign: 'center' }}>
+                <div style={{ fontFamily: mono, fontSize: 9, color: tx2, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Aucune mission</div>
+                <div style={{ fontSize: 14, color: tx1, fontWeight: 500, marginBottom: 4 }}>C'est votre premier diagnostic.</div>
+                <div style={{ fontSize: 12, color: tx2 }}>Créez une mission avec le bouton orange ci-dessus.</div>
+              </div>
+            ) : ms.map((m) => {
+              const grav = m.gravite_max > 0 ? GRAVITE[m.gravite_max] : null;
+              return (
+                <div key={m.id} onClick={() => resumeMission(m.id)}
+                  style={{ background: bg1, border: `1px solid ${bdr2}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8, transition: 'border-color .15s, background .15s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.background = bg2; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = bdr2; e.currentTarget.style.background = bg1; }}>
+                  {grav
+                    ? <Grav v={m.gravite_max} size={40} />
+                    : <div style={{ width: 40, height: 40, borderRadius: 7, background: bg2, border: `1px dashed ${bdr2}`, flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: tx0, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: -0.2 }}>{m.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: tx2 }}>
+                      <span>{fmtRelDate(m.updated_at)}</span>
+                      <span style={{ color: bdr2 }}>·</span>
+                      <span style={{ fontFamily: mono, fontWeight: 500 }}>{m.nb_fiches} fiche{m.nb_fiches > 1 ? 's' : ''}</span>
+                      <span style={{ color: bdr2 }}>·</span>
+                      <span style={{ fontFamily: mono, fontWeight: 500 }}>{m.nb_desordres || 0} désordre{(m.nb_desordres || 0) > 1 ? 's' : ''}</span>
+                    </div>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); delMission(m.id); }} style={{ background: 'none', border: 'none', color: '#ffffff20', cursor: 'pointer', fontSize: 14 }}>🗑</button>
+                  <button onClick={(e) => { e.stopPropagation(); delMission(m.id); }}
+                    style={{ background: 'none', border: 'none', color: tx2, cursor: 'pointer', fontSize: 13, padding: 6, opacity: 0.35, transition: 'opacity .15s, color .15s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.35; e.currentTarget.style.color = tx2; }}>
+                    🗑
+                  </button>
                 </div>
-              ))}
-            </>}
+              );
+            })}
           </div>
         )}
 
         {/* SETUP */}
         {scr === 'setup' && (
-          <div style={{ maxWidth: 520, margin: '0 auto', padding: '36px 24px' }}>
-            <button onClick={() => setScr('home')} style={{ background: 'none', border: 'none', color: accent, fontSize: 13, cursor: 'pointer', padding: '0 0 20px', fontWeight: 600 }}>← Retour</button>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Nouvelle mission</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div><label style={labelStyle}>Nom de la mission *</label><input value={nm} onChange={(e) => setNm(e.target.value)} placeholder="Ex: Parking Chevêne — Annecy" style={{ ...inputBase, padding: '12px 14px', fontSize: 15 }} /></div>
-              <div><label style={labelStyle}>Opérateur</label><input value={op} onChange={(e) => setOp(e.target.value)} placeholder="Ex: Q. Jullien" style={inputBase} /></div>
-              <div><label style={labelStyle}>🏢 Contexte de l'ouvrage</label><textarea value={cx} onChange={(e) => setCx(e.target.value)} placeholder={"Décrivez l'ouvrage : type, époque, structure, matériaux, environnement, historique..."} style={{ ...inputBase, minHeight: 120, resize: 'vertical', lineHeight: 1.6 }} /></div>
-              <Btn primary disabled={!nm.trim()} onClick={startMission} style={{ padding: 14, fontSize: 15 }}>Démarrer la mission →</Btn>
+          <div style={{ maxWidth: 560, margin: '0 auto', padding: '56px 24px 56px' }}>
+
+            {/* Back link */}
+            <button onClick={() => setScr('home')}
+              style={{ background: 'none', border: 'none', color: tx2, fontSize: 12, cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'color .15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = tx0; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = tx2; }}>
+              <span style={{ fontSize: 14 }}>←</span> Accueil
+            </button>
+
+            {/* Hero */}
+            <div style={{ marginTop: 32, marginBottom: 44 }}>
+              <h2 style={{ fontSize: 40, fontWeight: 700, margin: 0, letterSpacing: -1.2, color: tx0, lineHeight: 1.05 }}>
+                Nouvelle mission<span style={{ color: accent }}>.</span>
+              </h2>
+              <p style={{ color: tx1, fontSize: 14, margin: '16px 0 0', lineHeight: 1.55, maxWidth: 460 }}>
+                Donnez un nom à votre mission et décrivez l'ouvrage. Les photos s'importeront à l'étape suivante.
+              </p>
             </div>
+
+            {/* Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+              {/* Name — primary input */}
+              <div>
+                <label style={{ ...labelStyle, marginBottom: 8 }}>
+                  Nom de la mission <span style={{ color: accent, fontSize: 11 }}>requis</span>
+                </label>
+                <input autoFocus value={nm} onChange={(e) => setNm(e.target.value)}
+                  placeholder="Ex : Parking Chevène, Annecy"
+                  style={{ ...inputBase, padding: '14px 16px', fontSize: 17, fontWeight: 500 }} />
+              </div>
+
+              {/* Operateur */}
+              <div>
+                <label style={labelStyle}>Opérateur</label>
+                <input value={op} onChange={(e) => setOp(e.target.value)}
+                  placeholder="Ex : Q. Jullien"
+                  style={{ ...inputBase, padding: '12px 14px' }} />
+              </div>
+
+              {/* Contexte */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Contexte de l'ouvrage</label>
+                  <span style={{ fontSize: 10, color: tx2, fontStyle: 'italic' }}>optionnel, mais recommandé</span>
+                </div>
+                <textarea value={cx} onChange={(e) => setCx(e.target.value)}
+                  placeholder="Type, époque, structure, matériaux, environnement, historique. Plus la description est précise, mieux l'IA cadre son analyse."
+                  style={{ ...inputBase, padding: '12px 14px', minHeight: 140, resize: 'vertical', lineHeight: 1.6 }} />
+              </div>
+            </div>
+
+            {/* CTA — matches home pattern */}
+            <button onClick={startMission} disabled={!nm.trim()}
+              style={{
+                width: '100%', marginTop: 36, padding: '18px 22px', border: 'none', borderRadius: 8,
+                background: nm.trim() ? `linear-gradient(135deg, ${accent}, ${accent2})` : '#1a1a26',
+                color: nm.trim() ? '#f0eeeb' : tx2,
+                fontFamily: 'inherit', fontSize: 16, fontWeight: 700, letterSpacing: -0.2,
+                cursor: nm.trim() ? 'pointer' : 'not-allowed',
+                opacity: nm.trim() ? 1 : 0.6,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                transition: 'filter .15s, opacity .15s',
+              }}
+              onMouseEnter={(e) => { if (nm.trim()) e.currentTarget.style.filter = 'brightness(1.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}>
+              <span>{nm.trim() ? 'Démarrer la mission' : 'Saisissez un nom de mission'}</span>
+              <span style={{ fontSize: 22, fontWeight: 400, opacity: 0.85 }}>→</span>
+            </button>
           </div>
         )}
 
@@ -460,39 +635,92 @@ export default function App() {
             <div style={{ width: 320, borderRight: `1px solid ${bdr}`, display: 'flex', flexDirection: 'column', background: bg1, flexShrink: 0 }}>
               {/* Pool : photos importées en attente d'analyse batch */}
               {ungrouped.length > 0 && (
-                <div style={{ borderBottom: `1px solid ${bdr}`, padding: 12 }}>
-                  <div style={{ fontSize: 10, color: tx2, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
-                    {analyzing ? `Analyse de ${ungrouped.length} photo${ungrouped.length > 1 ? 's' : ''}…` : `À analyser (${ungrouped.length})`}
+                <div style={{ borderBottom: `1px solid ${bdr}`, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                    <span style={{ ...labelStyle, marginBottom: 0, fontSize: 10, letterSpacing: 1.5 }}>
+                      {analyzing ? 'Analyse en cours' : 'À analyser'}
+                    </span>
+                    <span style={{ fontFamily: mono, fontSize: 11, color: analyzing ? accent : tx1, fontWeight: 600 }}>
+                      {ungrouped.length}
+                    </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, maxHeight: 140, overflowY: 'auto', marginBottom: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, maxHeight: 140, overflowY: 'auto', marginBottom: 10 }}>
                     {ungrouped.map((p) => (
                       <PhotoCell key={p.id} photo={p} dimmed={analyzing} />
                     ))}
                   </div>
                   {analyzeError && (
-                    <div style={{ fontSize: 11, color: '#fca5a5', background: '#991b1b22', border: '1px solid #991b1b44', borderRadius: 6, padding: '6px 8px', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: '#fca5a5', background: '#991b1b22', border: '1px solid #991b1b44', borderRadius: 7, padding: '8px 10px', marginBottom: 10, lineHeight: 1.4 }}>
                       {analyzeError}
                     </div>
                   )}
-                  <Btn primary onClick={analyzePool} disabled={analyzing} style={{ width: '100%', padding: 10, fontSize: 13 }}>
-                    {analyzing ? '⟳ Analyse en cours…' : analyzeError ? '↻ Réessayer' : `✨ Analyser ${ungrouped.length} photo${ungrouped.length > 1 ? 's' : ''}`}
-                  </Btn>
+                  <button onClick={analyzePool} disabled={analyzing}
+                    style={{
+                      width: '100%', padding: '12px 14px', border: 'none', borderRadius: 7,
+                      background: analyzing ? '#1a1a26' : `linear-gradient(135deg, ${accent}, ${accent2})`,
+                      color: analyzing ? tx2 : '#f0eeeb',
+                      fontFamily: 'inherit', fontSize: 13, fontWeight: 700, letterSpacing: -0.1,
+                      cursor: analyzing ? 'wait' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      opacity: analyzing ? 0.7 : 1,
+                      transition: 'filter .15s',
+                    }}
+                    onMouseEnter={(e) => { if (!analyzing) e.currentTarget.style.filter = 'brightness(1.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}>
+                    <span>
+                      {analyzing
+                        ? 'Analyse de ' + ungrouped.length + ' photo' + (ungrouped.length > 1 ? 's' : '')
+                        : analyzeError
+                        ? 'Réessayer'
+                        : 'Analyser ' + ungrouped.length + ' photo' + (ungrouped.length > 1 ? 's' : '')}
+                    </span>
+                    <span style={{ fontSize: 18, fontWeight: 400, opacity: 0.85 }}>
+                      {analyzing ? '⟳' : analyzeError ? '↻' : '→'}
+                    </span>
+                  </button>
                 </div>
               )}
 
               {/* Constats list */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                {constats.length > 0 && <div style={{ fontSize: 10, color: tx2, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 6, padding: '0 4px' }}>Constats ({constats.length})</div>}
+              <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+                {constats.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8, padding: '0 4px' }}>
+                    <span style={{ ...labelStyle, marginBottom: 0, fontSize: 10, letterSpacing: 1.5 }}>Constats</span>
+                    <span style={{ fontFamily: mono, fontSize: 11, color: tx1, fontWeight: 600 }}>{constats.length}</span>
+                  </div>
+                )}
                 {constats.map((c, i) => <ConstatCard key={c.id} constat={c} index={i} selected={sel === i} onSelect={handleSelect} />)}
-                {constats.length === 0 && ungrouped.length === 0 && <div style={{ textAlign: 'center', padding: 32, color: tx2, fontSize: 13 }}>Importez les photos de votre mission</div>}
+                {constats.length === 0 && ungrouped.length === 0 && (
+                  <div style={{ padding: '40px 18px 24px', textAlign: 'center' }}>
+                    <div style={{ fontFamily: mono, fontSize: 9, color: tx2, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
+                      Mission vide
+                    </div>
+                    <div style={{ fontSize: 13, color: tx1, fontWeight: 500, marginBottom: 6, lineHeight: 1.45 }}>
+                      Glissez les photos de la mission ci-dessous pour démarrer.
+                    </div>
+                    <div style={{ fontSize: 11, color: tx2, lineHeight: 1.5 }}>
+                      L'IA produit une fiche par désordre identifié, que vous pourrez valider.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Import zone */}
               <div onDragOver={(e) => { e.preventDefault(); setDg(true); }} onDragLeave={() => setDg(false)} onDrop={(e) => { e.preventDefault(); setDg(false); addPhotos(e.dataTransfer.files); }}
                 onClick={() => fr.current?.click()}
-                style={{ padding: 16, borderTop: `1px solid ${bdr}`, textAlign: 'center', cursor: 'pointer', background: dg ? `${accent}08` : bg2 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: dg ? accent : tx1 }}>📁 Importer des photos</div>
-                <div style={{ fontSize: 10, color: tx2, marginTop: 2 }}>Glisser-déposer ou cliquer</div>
+                style={{
+                  padding: '20px 16px',
+                  borderTop: `1px solid ${bdr}`,
+                  textAlign: 'center', cursor: 'pointer',
+                  background: dg ? `${accent}10` : bg2,
+                  transition: 'background .15s',
+                }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: dg ? accent : tx0, marginBottom: 4, letterSpacing: -0.1 }}>
+                  {dg ? 'Déposez les photos ici' : 'Importer des photos'}
+                </div>
+                <div style={{ fontFamily: mono, fontSize: 9, color: dg ? `${accent}cc` : tx2, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  {dg ? 'Relâcher pour ajouter' : 'glisser-déposer ou cliquer'}
+                </div>
                 <input ref={fr} type="file" accept="image/*" multiple onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} style={{ display: 'none' }} />
               </div>
             </div>

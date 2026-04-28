@@ -2,6 +2,16 @@
 
 Ce fichier oriente Claude Code (et toi, futur·e moi) dans ce projet. **Version courante : 1.2.0**.
 
+## Design Context
+
+Avant tout travail UI/UX, lire **[PRODUCT.md](PRODUCT.md)** (registre, utilisateurs, anti-références, principes stratégiques) et **[DESIGN.md](DESIGN.md)** (système visuel : tokens, typographie, composants, do's/don'ts). Sidecar machine-readable : [DESIGN.json](DESIGN.json).
+
+Référence rapide :
+- **North Star :** *L'Atelier de l'Ingénieur* — sombre, dense, silencieux.
+- **Anti-références :** vieux logiciel BTP, AI SaaS slop, amateur type Paint.
+- **Règles dures :** un seul accent orange (≤ 10 % de la surface) ; aucun `#000` ni `#fff` ; pas d'ombre portée (profondeur tonale) ; couleur sémantique toujours doublée d'une forme.
+- Skill correspondante : `/impeccable` (commandes `craft`, `shape`, `critique`, `polish`…).
+
 ## Quoi
 **DiagIA Desktop** (package `diag-ia`, déployé sous `/IntelliDiag/`) — application web (React + Vite) de traitement post-mission pour le diagnostic structurel BTP. L'ingénieur importe les photos d'une mission, l'IA produit une fiche de constat normalisée par groupe de photos, l'opérateur valide/corrige avant export Word.
 

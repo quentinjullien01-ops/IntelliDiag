@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-04-28T00:00:00Z",
+  "title": "Design System: DiagIA / IntelliDiag",
+  "extensions": {
+    "colorMeta": {
+      "surface-noir-bleute": {
+        "role": "neutral",
+        "displayName": "Noir Bleuté",
+        "canonical": "oklch(11% 0.013 280)",
+        "tonalRamp": ["#0a0a14", "#10101e", "#16162a", "#1e1e3c", "#2c2c52", "#494970", "#76769b", "#b1b1c8"]
+      },
+      "surface-encre": {
+        "role": "neutral",
+        "displayName": "Encre",
+        "canonical": "oklch(14% 0.018 280)",
+        "tonalRamp": ["#0a0a14", "#10101e", "#16162a", "#1e1e3c", "#2c2c52", "#494970", "#76769b", "#b1b1c8"]
+      },
+      "surface-grain": {
+        "role": "neutral",
+        "displayName": "Grain",
+        "canonical": "oklch(18% 0.025 280)",
+        "tonalRamp": ["#0a0a14", "#10101e", "#16162a", "#1e1e3c", "#2c2c52", "#494970", "#76769b", "#b1b1c8"]
+      },
+      "texte-papier-creme": {
+        "role": "neutral",
+        "displayName": "Papier Crème",
+        "canonical": "oklch(95% 0.005 70)",
+        "tonalRamp": ["#26241f", "#3a3833", "#52504a", "#6e6c66", "#8d8b85", "#aeaca6", "#cfcdc7", "#f0eeeb"]
+      },
+      "texte-pierre": {
+        "role": "neutral",
+        "displayName": "Pierre",
+        "canonical": "oklch(70% 0.005 70)",
+        "tonalRamp": ["#26241f", "#3a3833", "#52504a", "#6e6c66", "#8d8b85", "#a8a4a0", "#c8c4c0", "#e8e4e0"]
+      },
+      "texte-cendre": {
+        "role": "neutral",
+        "displayName": "Cendre",
+        "canonical": "oklch(48% 0 0)",
+        "tonalRamp": ["#1a1a1a", "#2e2e2e", "#444444", "#5a5a5a", "#666666", "#888888", "#aaaaaa", "#cccccc"]
+      },
+      "accent-chantier-orange": {
+        "role": "primary",
+        "displayName": "Orange Chantier",
+        "canonical": "oklch(70% 0.19 40)",
+        "tonalRamp": ["#3d1505", "#5e2008", "#82300d", "#a64514", "#cc5722", "#ff6b35", "#ff8f5e", "#ffc4a3"]
+      },
+      "accent-chantier-clair": {
+        "role": "primary",
+        "displayName": "Orange Chantier Clair",
+        "canonical": "oklch(76% 0.16 40)",
+        "tonalRamp": ["#3d1505", "#5e2008", "#82300d", "#a64514", "#cc5722", "#ff6b35", "#ff8f5e", "#ffc4a3"]
+      },
+      "gravite-1-trait": {
+        "role": "tertiary",
+        "displayName": "Vert Mineur",
+        "canonical": "oklch(74% 0.18 145)",
+        "tonalRamp": ["#0a2818", "#114022", "#16542d", "#166534", "#1e8243", "#22c55e", "#86efac", "#dcfce7"]
+      },
+      "gravite-2-trait": {
+        "role": "tertiary",
+        "displayName": "Jaune Modéré",
+        "canonical": "oklch(80% 0.16 90)",
+        "tonalRamp": ["#3a2a05", "#5e4308", "#78540a", "#854d0e", "#a87a17", "#eab308", "#facc15", "#fef9c3"]
+      },
+      "gravite-3-trait": {
+        "role": "tertiary",
+        "displayName": "Orange Significatif",
+        "canonical": "oklch(74% 0.18 50)",
+        "tonalRamp": ["#3d1f08", "#5e2f0c", "#82400e", "#9a3412", "#c2521b", "#f97316", "#fdba74", "#ffedd5"]
+      },
+      "gravite-4-trait": {
+        "role": "tertiary",
+        "displayName": "Rouge Critique",
+        "canonical": "oklch(64% 0.22 27)",
+        "tonalRamp": ["#3d0a0a", "#5e1010", "#7f1818", "#991b1b", "#bd2828", "#ef4444", "#fca5a5", "#fee2e2"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Pastilles de gravité globale en en-tête de fiche, titres d'écran d'accueil." },
+      "headline": { "displayName": "Headline", "purpose": "Titres de section dans le panneau fiche." },
+      "title": { "displayName": "Title", "purpose": "Libellés de boutons, en-têtes de désordres, étiquettes de fiches." },
+      "body": { "displayName": "Body", "purpose": "Texte courant, descriptions, valeurs d'inputs. Mesure cible 65 à 75 caractères." },
+      "label": { "displayName": "Eyebrow Label", "purpose": "Libellés de champs, eyebrows de section. Uppercase, letter-spacing 1px." },
+      "mono": { "displayName": "Mono Machine", "purpose": "Identifiants, pourcentages, codes désordres, compteurs. Tout ce qui est sortie machine." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "transition-fast", "value": "all .15s", "purpose": "Survol et focus de boutons, sélection de cartes." },
+      { "name": "transition-standard", "value": "all .2s", "purpose": "Apparition et bascule d'éléments interactifs." },
+      { "name": "transition-photo", "value": "opacity .2s", "purpose": "Estompe des miniatures de photos non sélectionnées dans le pool." },
+      { "name": "spin", "value": "spin .8s linear infinite", "purpose": "Spinner de chargement pour analyse IA en cours." },
+      { "name": "pulse", "value": "pulse 1s infinite", "purpose": "Indicateur d'état actif (orange clignotant) pendant l'analyse d'un constat." },
+      { "name": "rotate-chevron", "value": "transform .15s", "purpose": "Bascule du chevron sur expand/collapse de désordres." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Bouton Primaire",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Action principale unique par écran. Dégradé orange, jamais imité par d'autres boutons.",
+      "html": "<button class=\"ds-btn-primary\">Analyser 12 photos</button>",
+      "css": ".ds-btn-primary { padding: 10px 18px; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', -apple-system, sans-serif; color: #ffffff; background: linear-gradient(135deg, #ff6b35, #ff8f5e); cursor: pointer; transition: filter .15s; } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 2px solid #ff6b3580; outline-offset: 2px; } .ds-btn-primary:disabled { background: #222; color: #666666; opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Bouton Par Défaut",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Action secondaire. Surface grain, texte pierre, bordure fantôme.",
+      "html": "<button class=\"ds-btn-default\">Annuler</button>",
+      "css": ".ds-btn-default { padding: 10px 18px; border: 1px solid #ffffff12; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', -apple-system, sans-serif; color: #a8a4a0; background: #16162a; cursor: pointer; transition: all .15s; } .ds-btn-default:hover { border-color: #ff6b3544; color: #f0eeeb; } .ds-btn-default:focus-visible { outline: 2px solid #ff6b3580; outline-offset: 2px; }"
+    },
+    {
+      "name": "Tag Mono",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Méta machine : compteurs, états techniques, durées. Toujours en JetBrains Mono.",
+      "html": "<span class=\"ds-tag\">12 photos</span>",
+      "css": ".ds-tag { display: inline-block; padding: 2px 8px; border: 1px solid #ffffff12; border-radius: 4px; background: #16162a; color: #666666; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 400; line-height: 1.4; }"
+    },
+    {
+      "name": "Input Inline-Edit",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Champ qui se présente comme texte cliquable au repos, devient input au focus, redevient texte au blur. Pattern signature des fiches éditables.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-field-label\">Localisation</div><input class=\"ds-field-input\" value=\"Mur sud, niveau RDC\" /></div>",
+      "css": ".ds-field { margin-bottom: 8px; } .ds-field-label { font-family: 'DM Sans', -apple-system, sans-serif; font-size: 9px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; } .ds-field-input { width: 100%; padding: 4px 8px; border: 1px solid #ffffff12; border-radius: 5px; background: #16162a; color: #f0eeeb; font-family: 'DM Sans', -apple-system, sans-serif; font-size: 12px; outline: none; transition: border-color .15s; } .ds-field-input:focus { border-color: #ff6b3544; } .ds-field-input::placeholder { color: #666666; font-style: italic; }"
+    },
+    {
+      "name": "Carte de Constat (List Item)",
+      "kind": "card",
+      "refersTo": "card-list-item",
+      "description": "Élément du panneau gauche : miniature photo, gravité, synthèse tronquée. Sélection par fond + bordure orange à faible alpha, jamais par halo.",
+      "html": "<div class=\"ds-constat ds-constat--selected\"><div class=\"ds-constat-thumb\"><span class=\"ds-constat-count\">3</span></div><div class=\"ds-constat-body\"><div class=\"ds-constat-meta\"><span class=\"ds-constat-id\">#001</span><span class=\"ds-grav ds-grav--3\">3</span></div><p class=\"ds-constat-syn\">Fissure traversante en façade sud, longueur 2.3m</p></div></div>",
+      "css": ".ds-constat { display: flex; gap: 10px; padding: 10px 12px; border-radius: 8px; background: #10101e; border: 1px solid transparent; cursor: pointer; transition: all .15s; margin-bottom: 4px; } .ds-constat:hover { background: #16162a; } .ds-constat--selected { background: #ff6b3512; border-color: #ff6b3540; } .ds-constat-thumb { width: 56px; height: 44px; border-radius: 6px; background: #16162a; flex-shrink: 0; position: relative; } .ds-constat-count { position: absolute; top: 2px; right: 2px; padding: 0 4px; background: #000000bf; border-radius: 3px; color: #ffffff99; font-family: 'JetBrains Mono', monospace; font-size: 9px; } .ds-constat-body { flex: 1; min-width: 0; } .ds-constat-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; } .ds-constat-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #666666; } .ds-grav { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 9px; border: 1.5px solid; flex-shrink: 0; } .ds-grav--3 { background: #ffedd5; color: #9a3412; border-color: #f97316; } .ds-constat-syn { margin: 0; font-size: 11px; color: #a8a4a0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }"
+    },
+    {
+      "name": "Indicateur de Gravité (Grav)",
+      "kind": "custom",
+      "refersTo": "grav-badge",
+      "description": "Pastille carrée avec chiffre 1-4. Toujours rendue avec couleur + chiffre + label par la Règle Couleur + Forme.",
+      "html": "<div class=\"ds-grav-row\"><span class=\"ds-grav-badge ds-grav-badge--4\">4</span><span class=\"ds-grav-label\">Critique</span></div>",
+      "css": ".ds-grav-row { display: inline-flex; align-items: center; gap: 6px; } .ds-grav-badge { width: 22px; height: 22px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-family: 'DM Sans', -apple-system, sans-serif; font-weight: 800; font-size: 11px; border: 1.5px solid; flex-shrink: 0; } .ds-grav-badge--1 { background: #dcfce7; color: #166534; border-color: #22c55e; } .ds-grav-badge--2 { background: #fef9c3; color: #854d0e; border-color: #eab308; } .ds-grav-badge--3 { background: #ffedd5; color: #9a3412; border-color: #f97316; } .ds-grav-badge--4 { background: #fee2e2; color: #991b1b; border-color: #ef4444; } .ds-grav-label { font-family: 'DM Sans', -apple-system, sans-serif; font-size: 12px; font-weight: 600; color: #f0eeeb; }"
+    },
+    {
+      "name": "Barre de Confiance IA",
+      "kind": "custom",
+      "refersTo": "confidence-bar",
+      "description": "Indicateur de confiance IA : libellé, barre fine, pourcentage en mono, badge validation. Remplace tout badge décoratif Powered by AI.",
+      "html": "<div class=\"ds-conf\"><span class=\"ds-conf-label\">Confiance IA</span><div class=\"ds-conf-track\"><div class=\"ds-conf-fill\" style=\"width: 87%; background: #22c55e;\"></div></div><span class=\"ds-conf-pct\">87%</span><span class=\"ds-conf-validated\">+ Validé</span></div>",
+      "css": ".ds-conf { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #10101e; border-radius: 6px; } .ds-conf-label { font-family: 'DM Sans', -apple-system, sans-serif; font-size: 10px; color: #666666; } .ds-conf-track { flex: 1; max-width: 140px; height: 4px; background: #0a0a14; border-radius: 2px; overflow: hidden; } .ds-conf-fill { height: 100%; border-radius: 2px; transition: width .2s; } .ds-conf-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #a8a4a0; } .ds-conf-validated { font-family: 'DM Sans', -apple-system, sans-serif; font-size: 10px; font-weight: 600; color: #22c55e; margin-left: 8px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "L'Atelier de l'Ingénieur",
+    "overview": "L'Atelier de l'Ingénieur est un outil sombre, dense et silencieux. Pas un showroom, pas un dashboard de vanité : un poste de travail post-mission, où un expert revoit ses photos, valide des diagnostics, signe un rapport. La densité d'information est élevée mais maîtrisée : chaque pixel sert le métier. Les surfaces sont plates, empilées par tonalité plutôt que par ombre. Le seul accent chromatique est un orange chantier (#ff6b35) : il marque l'action, l'IA, l'état actif, et nulle part ailleurs. Le système rejette frontalement trois langages visuels : le vieux logiciel BTP français, le AI SaaS slop, l'amateurisme type Paint. À la place : la précision visuelle d'un IDE, la sobriété d'un terminal, la chaleur discrète d'un cuir noir bleuté.",
+    "keyCharacteristics": [
+      "Thème sombre par défaut (laptop, intérieur, sessions de 30 min à 2 h), thème clair prévu en option.",
+      "Trois tons de surface stratifiés (#0a0a14 puis #10101e puis #16162a) pour la profondeur, jamais d'ombre portée.",
+      "Typographie double : DM Sans pour la prose et l'UI, JetBrains Mono pour les sorties machine.",
+      "Échelle de gravité 1 à 4 codée par couleur, toujours combinée à un chiffre et un label.",
+      "Restraint coloriel total : un seul accent orange, jamais saupoudré."
+    ],
+    "rules": [
+      { "name": "La Règle de l'Accent Unique", "body": "L'orange #ff6b35 est utilisé sur 10 % maximum de la surface visible. Il marque exclusivement l'action principale, l'état IA, la confirmation utilisateur. Quand tout est orange, plus rien ne l'est.", "section": "colors" },
+      { "name": "La Règle du Pas de Pur Noir/Blanc", "body": "Aucun #000, aucun #fff dans l'interface. Le texte le plus clair est #f0eeeb (papier crème). Le fond le plus sombre est #0a0a14 (noir bleuté).", "section": "colors" },
+      { "name": "La Règle Couleur + Forme", "body": "Tout signal sémantique encodé en couleur (gravité, état, confiance) doit aussi être encodé en forme : numéro, icône, label, position.", "section": "colors" },
+      { "name": "La Règle Mono = Machine", "body": "Tout ce qui est généré ou indexé par la machine est en JetBrains Mono. Toute prose interprétative ou éditable est en DM Sans.", "section": "typography" },
+      { "name": "La Règle Eyebrow Tracking", "body": "Les libellés de champ et eyebrows de section sont en majuscules, 9px, letter-spacing 1px.", "section": "typography" },
+      { "name": "La Règle 65 à 75ch", "body": "Pour toute prose continue, limiter la mesure à 65 à 75 caractères. Aucune ligne courante en pleine largeur d'écran.", "section": "typography" },
+      { "name": "La Règle Plate Par Défaut", "body": "Aucune surface ne porte d'ombre au repos. La profondeur passe exclusivement par la stratification tonale.", "section": "elevation" },
+      { "name": "La Règle Bordure Fantôme", "body": "Les bordures sont blanches à 4 ou 12 % d'opacité, jamais des couleurs solides.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do utiliser l'orange #ff6b35 comme accent unique, sur 10 % maximum de toute surface visible.",
+      "Do afficher la gravité par pastille colorée + numéro + label (toujours les trois ensemble).",
+      "Do réserver JetBrains Mono aux sorties machine et garder DM Sans pour la prose.",
+      "Do empiler les surfaces par tonalité (#0a0a14 puis #10101e puis #16162a) pour exprimer la profondeur.",
+      "Do utiliser la couleur crème #f0eeeb pour le texte principal, jamais #ffffff.",
+      "Do placer les bordures à #ffffff0a ou #ffffff12 (4 à 12 % d'opacité), jamais en gris solide.",
+      "Do respecter prefers-reduced-motion pour spin et pulse.",
+      "Do garder une seule action primaire (bouton dégradé orange) visible par écran à la fois.",
+      "Do prévoir un thème clair miroir : tous les composants doivent basculer proprement entre sombre et clair via tokens."
+    ],
+    "donts": [
+      "Don't utiliser #000 pur ou #fff pur dans l'interface.",
+      "Don't ajouter d'ombres portées aux cartes, panneaux ou boutons.",
+      "Don't saupoudrer l'orange : ce n'est pas une décoration, c'est un signal d'action ou d'état IA.",
+      "Don't tomber dans le vieux logiciel BTP français : barres d'outils grises Office 2003, dialogues Win95, formulaires denses sans hiérarchie.",
+      "Don't tomber dans le AI SaaS slop : dégradés flous, hero metric template, glassmorphisme, badges Powered by AI.",
+      "Don't tomber dans l'amateur type Paint : alignements approximatifs, palettes naïves, fonts système par défaut.",
+      "Don't utiliser de bordure latérale colorée supérieure à 1px comme accent visuel.",
+      "Don't appliquer background-clip: text avec un dégradé pour faire du texte coloré.",
+      "Don't ajouter de glassmorphism comme effet décoratif.",
+      "Don't encoder un signal sémantique par couleur seule. Toujours forme + couleur.",
+      "Don't imbriquer des cartes (cartes dans cartes).",
+      "Don't afficher plus d'un bouton primaire par écran.",
+      "Don't animer les propriétés layout (width, height, top, left). Préférer transform et opacity.",
+      "Don't utiliser de courbes d'easing bounce ou elastic. Ease-out exponentiel uniquement."
+    ]
+  }
+}
