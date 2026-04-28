@@ -23,8 +23,8 @@ Le moteur et la clé API sont stockés en `localStorage` ; les requêtes partent
 |---|---|
 | [main.jsx](src/main.jsx) | Entry point React |
 | [App.jsx](src/App.jsx) | **Tout l'état + UI** : 3 écrans (`home` / `setup` / `mission`), file d'attente d'analyse, persistance auto |
-| [api.js](src/api.js) | `analyzePhotos(files, prompt, apiKey, engine)` + `generateSynthesis(...)` ; routage vers `callClaude`/`callGemini`/mock démo |
-| [prompts.js](src/prompts.js) | `buildAnalysisPrompt(contexte)` + `SYNTHESIS_PROMPT` (utilisé par Claude ; Gemini a un prompt inline plus court) |
+| [api.js](src/api.js) | `analyzeBatch(files, prompt, apiKey, engine)` (batch multi-photos) + `generateSynthesis(...)` ; routage vers `callBatchClaude`/`callBatchGemini`/`demoBatch`. `analyzePhotos` (legacy single-fiche) reste exportée mais inutilisée |
+| [prompts.js](src/prompts.js) | `buildBatchAnalysisPrompt(contexte)` (groupement par désordre) + `buildAnalysisPrompt(contexte)` (legacy) + `SYNTHESIS_PROMPT` |
 | [storage.js](src/storage.js) | Missions → `localStorage` (JSON) ; Photos → IndexedDB (blobs) |
 | [export.js](src/export.js) | Génération du `.doc` (HTML compatible Word/LibreOffice) |
 | [components.jsx](src/components.jsx) | Primitives UI : `Grav`, `Tag`, `Btn`, `EField`, `ConfBar` |
@@ -32,18 +32,25 @@ Le moteur et la clé API sont stockés en `localStorage` ; les requêtes partent
 | [styles.css](src/styles.css) | Reset minimal + animations (`spin`, `pulse`) |
 
 ## Pipeline IA
-**Pipeline mono-phase**, pas de pré/post-traitement IA :
+**Pipeline batch mono-appel**, l'IA fait le regroupement par désordre :
 
-1. L'opérateur drag&drop des photos → elles tombent dans le pool `ungrouped`.
-2. Il sélectionne plusieurs photos puis clique **"Grouper"** (1 constat = N photos), OU clique **"1:1"** pour créer un constat par photo automatiquement. ⚠️ **Le regroupement est 100 % manuel** — aucune IA ne suggère ni ne fusionne les groupes.
-3. Chaque constat est poussé dans une file d'attente (`qr.current`) traitée séquentiellement par `processQueue()`.
-4. `analyzePhotos(files, prompt, apiKey, engine)` envoie **toutes** les photos du constat en une seule requête multimodale → l'engine choisi renvoie **un seul objet JSON** (la fiche), normalisé par `validateFiche()`.
-5. Synthèse de mission : bouton ✨ → `generateSynthesis()` envoie l'agrégat des fiches JSON et reçoit un texte rédigé.
+1. L'opérateur drag&drop des photos → elles tombent dans le pool `ungrouped` (renommer en "pool" prochainement).
+2. Il clique **"✨ Analyser N photos"** — un seul bouton, plus de regroupement manuel.
+3. `analyzePool()` snapshot le pool, puis appelle `analyzeBatch(files, buildBatchAnalysisPrompt(cx), apiKey, engine)` ([App.jsx](src/App.jsx)).
+4. **Une seule requête multimodale** envoie TOUTES les photos d'un coup. L'IA renvoie un array `[{photo_indices, fiche}, ...]` — un élément par désordre distinct identifié, regroupant les indices des photos qui le montrent.
+5. `validateBatch()` normalise chaque fiche et ajoute une fiche catch-all `AUTRE` pour les photos orphelines (non rattachées par l'IA).
+6. App crée M constats (M ≤ N), un par fiche, avec les photos correspondantes. Pool vidé.
+7. Synthèse de mission : bouton ✨ → `generateSynthesis()` envoie l'agrégat des fiches JSON et reçoit un texte rédigé.
 
-> Si on veut un jour un pipeline en plusieurs phases (description par photo → regroupement IA → fusion dans constats existants), tout est à construire — ce n'est pas là.
+> Si l'utilisateur drop plus de photos après l'analyse, elles s'ajoutent au pool ; un nouveau click sur "Analyser" les traite en batch séparé et **append** les nouveaux constats. Pas de réanalyse globale automatique.
+
+### Limites pratiques
+- Claude Sonnet 4 (200K context) : ~30 photos/batch confortable, au-delà risque de saturation
+- Gemini 2.5 Flash (1M context) : 50+ photos/batch sans souci
+- Demo : illimité, génère 1-3 fiches mock réparties sur les photos
 
 ### Mode démo
-Sans clé API ou `engine === 'demo'`, `analyzePhotos` renvoie une fiche mock après un délai aléatoire (~1.5–3.5 s). Utile pour tester l'UI sans consommer de quota et pour les démos commerciales.
+Sans clé API ou `engine === 'demo'`, `analyzeBatch` retourne après ~2-4 s un array de fiches mock avec photo_indices distribués round-robin. Utile pour tester l'UI sans consommer de quota et pour les démos commerciales.
 
 ## Format fiche (sortie IA)
 JSON strict normalisé par `validateFiche()` ([api.js](src/api.js)) :
