@@ -181,6 +181,7 @@ export default function App() {
   const [op, setOp] = useState('');
   const [cx, setCx] = useState('');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('diag-ia:api-key') || '');
+  const [engine, setEngine] = useState(() => localStorage.getItem('diag-ia:engine') || 'demo');
   const [syn, setSyn] = useState('');
   const [gs, setGs] = useState(false);
   const [dg, setDg] = useState(false);
@@ -195,6 +196,7 @@ export default function App() {
 
   // Save API key
   useEffect(() => { if (apiKey) localStorage.setItem('diag-ia:api-key', apiKey); }, [apiKey]);
+  useEffect(() => { localStorage.setItem('diag-ia:engine', engine); }, [engine]);
 
   // Auto-save mission
   useEffect(() => {
@@ -226,7 +228,7 @@ export default function App() {
         const con = await new Promise((r) => { setConstats((p) => { r(p.find((c) => c.id === id)); return p; }); });
         const files = con.photos.map((p) => p.file).filter(Boolean);
         if (!files.length) throw new Error('Pas de photos avec fichier');
-        const result = await analyzePhotos(files, buildAnalysisPrompt(cx), apiKey);
+        const result = await analyzePhotos(files, buildAnalysisPrompt(cx), apiKey, engine);
         // Save photos to IndexedDB
         for (const ph of con.photos) {
           if (ph.file && ph.id) await savePhoto(ph.id, ph.file);
@@ -336,7 +338,7 @@ export default function App() {
     setGs(true);
     try {
       const fichesData = done.map((c, i) => ({ numero: i + 1, ...c.fiche }));
-      const result = await generateSynthesis(SYNTHESIS_PROMPT, nm, cx, fichesData, apiKey);
+      const result = await generateSynthesis(SYNTHESIS_PROMPT, nm, cx, fichesData, apiKey, engine);
       setSyn(result);
     } catch (e) { alert('Erreur : ' + e.message); }
     setGs(false);
@@ -382,11 +384,20 @@ export default function App() {
               <p style={{ color: tx2, fontSize: 14 }}>Diagnostic structurel — Traitement post-mission</p>
             </div>
 
-            {/* API Key */}
+            {/* Engine + API Key */}
             <div style={{ marginBottom: 24, padding: 16, background: bg1, borderRadius: 10, border: `1px solid ${bdr2}` }}>
-              <label style={labelStyle}>🔑 Clé API Anthropic</label>
-              <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-ant-..." style={inputBase} />
-              <p style={{ fontSize: 10, color: tx2, marginTop: 6 }}>Stockée localement dans votre navigateur. Jamais transmise à un tiers.</p>
+              <label style={labelStyle}>Moteur IA</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                {[{v:'demo',l:'Demo (gratuit)'},{v:'gemini',l:'Gemini (gratuit)'},{v:'claude',l:'Claude (payant)'}].map(o => (
+                  <button key={o.v} onClick={() => setEngine(o.v)} style={{ flex: 1, padding: '8px', borderRadius: 6, border: engine === o.v ? `2px solid ${accent}` : `1px solid ${bdr2}`, background: engine === o.v ? `${accent}15` : bg2, color: engine === o.v ? accent : tx1, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{o.l}</button>
+                ))}
+              </div>
+              {engine !== 'demo' && <>
+                <label style={labelStyle}>{engine === 'gemini' ? 'Cle API Google Gemini' : 'Cle API Anthropic'}</label>
+                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={engine === 'gemini' ? 'AIza...' : 'sk-ant-...'} style={inputBase} />
+                <p style={{ fontSize: 10, color: tx2, marginTop: 6 }}>{engine === 'gemini' ? 'Gratuit ! Creez votre cle sur ai.google.dev' : 'Payant. Cle sur console.anthropic.com'}</p>
+              </>}
+              {engine === 'demo' && <p style={{ fontSize: 11, color: accent }}>Mode demo actif — donnees fictives realistes, pas besoin de cle API.</p>}
             </div>
 
             <Btn primary onClick={() => { setNm(''); setOp(''); setCx(''); setSyn(''); setScr('setup'); }} style={{ width: '100%', padding: 16, fontSize: 16, marginBottom: 32 }}>+ Nouvelle mission</Btn>
