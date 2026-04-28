@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { Grav, Tag, Btn, EField, ConfBar } from './components';
 import { loadMissionsIndex, saveMissionsIndex, loadMission, saveMission, deleteMission, savePhoto, loadPhoto, deletePhotos } from './storage';
 import { analyzePhotos, generateSynthesis } from './api';
@@ -6,12 +6,25 @@ import { buildAnalysisPrompt, SYNTHESIS_PROMPT } from './prompts';
 import { exportToWord } from './export';
 import { GRAVITE, RECO, GRAV_OPTIONS, EVO_OPTIONS, IMPACT_OPTIONS, RECO_OPTIONS, bg0, bg1, bg2, bdr, bdr2, tx0, tx1, tx2, accent, accent2, mono } from './theme';
 
+// ═══ PHOTO CELL (ungrouped pool) ═══
+const PhotoCell = memo(function PhotoCell({ photo, selected, onToggle }) {
+  return (
+    <div onClick={() => onToggle(photo.id)} style={{
+      aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer',
+      border: selected ? `2px solid ${accent}` : '2px solid transparent',
+      opacity: selected ? 1 : 0.7,
+    }}>
+      <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </div>
+  );
+});
+
 // ═══ CONSTAT CARD (left panel) ═══
-function ConstatCard({ constat: c, index, selected, onClick }) {
+const ConstatCard = memo(function ConstatCard({ constat: c, index, selected, onSelect }) {
   const g = c.fiche ? GRAVITE[c.fiche.gravite_globale] || GRAVITE[1] : null;
   const mainImg = c.photos[0]?.url;
   return (
-    <div onClick={onClick} style={{
+    <div onClick={() => onSelect(index)} style={{
       display: 'flex', gap: 10, padding: '10px 12px', cursor: 'pointer', borderRadius: 8,
       background: selected ? `${accent}12` : bg1,
       border: selected ? `1px solid ${accent}40` : '1px solid transparent',
@@ -35,10 +48,10 @@ function ConstatCard({ constat: c, index, selected, onClick }) {
       </div>
     </div>
   );
-}
+});
 
 // ═══ EDITABLE DESORDRE ═══
-function EditableDesordre({ d, di, updDes }) {
+const EditableDesordre = memo(function EditableDesordre({ d, di, updDes }) {
   const [open, setOpen] = useState(true);
   const g = GRAVITE[d.gravite] || GRAVITE[1];
   return (
@@ -66,7 +79,7 @@ function EditableDesordre({ d, di, updDes }) {
       )}
     </div>
   );
-}
+});
 
 // ═══ FICHE PANEL ═══
 function FichePanel({ constat: c, index, onUpdate, onValidate }) {
@@ -95,23 +108,47 @@ function FichePanel({ constat: c, index, onUpdate, onValidate }) {
   const g = GRAVITE[f.gravite_globale] || GRAVITE[1];
   const r = RECO[f.recommandation_globale] || { label: '', icon: '📋' };
 
-  const upd = (path, val) => {
-    const nf = JSON.parse(JSON.stringify(f));
-    let obj = nf;
-    const parts = path.split('.');
-    for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
-    obj[parts[parts.length - 1]] = val;
-    onUpdate(nf);
-  };
+  // Refs pour garder upd/updDes stables malgré les changements de f/onUpdate.
+  // Sans ça, EditableDesordre (memo) rerend tous les désordres à chaque keystroke.
+  const fRef = useRef(f);
+  const onUpdateRef = useRef(onUpdate);
+  fRef.current = f;
+  onUpdateRef.current = onUpdate;
 
-  const updDes = (di, path, val) => {
-    const nf = JSON.parse(JSON.stringify(f));
-    let obj = nf.desordres[di];
+  const upd = useCallback((path, val) => {
+    const cur = fRef.current;
     const parts = path.split('.');
-    for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+    if (parts.length === 1) {
+      onUpdateRef.current({ ...cur, [path]: val });
+      return;
+    }
+    const nf = { ...cur };
+    let obj = nf;
+    for (let i = 0; i < parts.length - 1; i++) {
+      obj[parts[i]] = { ...obj[parts[i]] };
+      obj = obj[parts[i]];
+    }
     obj[parts[parts.length - 1]] = val;
-    onUpdate(nf);
-  };
+    onUpdateRef.current(nf);
+  }, []);
+
+  const updDes = useCallback((di, path, val) => {
+    const cur = fRef.current;
+    const parts = path.split('.');
+    const newDesordres = cur.desordres.map((d, i) => {
+      if (i !== di) return d;
+      if (parts.length === 1) return { ...d, [path]: val };
+      const nd = { ...d };
+      let obj = nd;
+      for (let j = 0; j < parts.length - 1; j++) {
+        obj[parts[j]] = { ...obj[parts[j]] };
+        obj = obj[parts[j]];
+      }
+      obj[parts[parts.length - 1]] = val;
+      return nd;
+    });
+    onUpdateRef.current({ ...cur, desordres: newDesordres });
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -191,6 +228,18 @@ export default function App() {
   const pr = useRef(false);
   const qr = useRef([]);
 
+  // Stable callback : évite que les 50 ConstatCard rerendent à chaque sélection
+  const handleSelect = useCallback((i) => setSel(i), []);
+
+  // Stable toggle : évite que les 50 PhotoCell rerendent à chaque cochage
+  const togglePhotoSel = useCallback((id) => {
+    setSelUG((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }, []);
+
   // Load missions on mount
   useEffect(() => { setMs(loadMissionsIndex()); }, []);
 
@@ -198,23 +247,26 @@ export default function App() {
   useEffect(() => { if (apiKey) localStorage.setItem('diag-ia:api-key', apiKey); }, [apiKey]);
   useEffect(() => { localStorage.setItem('diag-ia:engine', engine); }, [engine]);
 
-  // Auto-save mission
+  // Auto-save mission (debounced 500 ms — évite stringify+localStorage à chaque keystroke)
   useEffect(() => {
     if (!cm || scr !== 'mission') return;
-    const done = constats.filter((c) => c.fiche);
-    const data = {
-      ...cm, updated_at: Date.now(), contexte_ouvrage: cx, synthese: syn,
-      nb_fiches: done.length,
-      nb_desordres: done.reduce((s, c) => s + (c.fiche?.desordres?.length || 0), 0),
-      gravite_max: done.length ? Math.max(...done.map((c) => c.fiche?.gravite_globale || 1)) : 0,
-      constats: done.map((c) => ({
-        fiche: c.fiche, validated: c.validated, timestamp: c.timestamp,
-        photoIds: c.photos.map((p) => p.id).filter(Boolean),
-        photoCount: c.photos.length,
-      })),
-    };
-    saveMission(data);
-    setMs((prev) => prev.map((m) => m.id === cm.id ? { ...m, updated_at: data.updated_at, nb_fiches: data.nb_fiches, nb_desordres: data.nb_desordres, gravite_max: data.gravite_max } : m));
+    const t = setTimeout(() => {
+      const done = constats.filter((c) => c.fiche);
+      const data = {
+        ...cm, updated_at: Date.now(), contexte_ouvrage: cx, synthese: syn,
+        nb_fiches: done.length,
+        nb_desordres: done.reduce((s, c) => s + (c.fiche?.desordres?.length || 0), 0),
+        gravite_max: done.length ? Math.max(...done.map((c) => c.fiche?.gravite_globale || 1)) : 0,
+        constats: done.map((c) => ({
+          fiche: c.fiche, validated: c.validated, timestamp: c.timestamp,
+          photoIds: c.photos.map((p) => p.id).filter(Boolean),
+          photoCount: c.photos.length,
+        })),
+      };
+      saveMission(data);
+      setMs((prev) => prev.map((m) => m.id === cm.id ? { ...m, updated_at: data.updated_at, nb_fiches: data.nb_fiches, nb_desordres: data.nb_desordres, gravite_max: data.gravite_max } : m));
+    }, 500);
+    return () => clearTimeout(t);
   }, [constats, cx, syn, cm, scr]);
 
   // Queue processor
@@ -263,13 +315,16 @@ export default function App() {
     setTimeout(processQueue, 50);
   }, [ungrouped, processQueue]);
 
-  // Auto-create 1:1
+  // Auto-create 1:1 — batch en un seul setConstats au lieu de N appels successifs
   const autoCreate = useCallback(() => {
-    ungrouped.forEach((ph) => {
-      const id = 'c' + Date.now() + Math.random().toString(36).slice(2, 6) + ph.id.slice(-4);
-      setConstats((p) => [...p, { id, photos: [ph], fiche: null, status: 'pending', validated: false, error: null, timestamp: Date.now() }]);
-      qr.current.push(id);
-    });
+    if (!ungrouped.length) return;
+    const ts = Date.now();
+    const newConstats = ungrouped.map((ph) => ({
+      id: 'c' + ts + Math.random().toString(36).slice(2, 6) + ph.id.slice(-4),
+      photos: [ph], fiche: null, status: 'pending', validated: false, error: null, timestamp: ts,
+    }));
+    setConstats((p) => [...p, ...newConstats]);
+    qr.current.push(...newConstats.map((c) => c.id));
     setUngrouped([]);
     setSelUG(new Set());
     setTimeout(processQueue, 50);
@@ -291,24 +346,23 @@ export default function App() {
     if (!m) return;
     setNm(m.name); setOp(m.operateur || ''); setCx(m.contexte_ouvrage || ''); setSyn(m.synthese || '');
     setCm(m);
-    // Restore constats — try to load photos from IndexedDB
-    const restored = [];
-    for (const c of (m.constats || [])) {
-      const photos = [];
-      if (c.photoIds) {
-        for (const pid of c.photoIds) {
-          const file = await loadPhoto(pid);
-          photos.push({ id: pid, url: file ? URL.createObjectURL(file) : null, file });
-        }
+    // Restore constats — toutes les photos chargées en parallèle (Promise.all)
+    const restored = await Promise.all((m.constats || []).map(async (c, idx) => {
+      let photos = [];
+      if (c.photoIds?.length) {
+        const files = await Promise.all(c.photoIds.map((pid) => loadPhoto(pid)));
+        photos = c.photoIds.map((pid, i) => ({
+          id: pid, url: files[i] ? URL.createObjectURL(files[i]) : null, file: files[i],
+        }));
       }
       if (photos.length === 0) {
-        // Fallback: create placeholder photos
+        // Fallback: placeholders (cache vidé / mission importée)
         for (let i = 0; i < (c.photoCount || 1); i++) {
           photos.push({ id: null, url: null, file: null });
         }
       }
-      restored.push({ id: 'r' + restored.length, photos, fiche: c.fiche, status: 'done', validated: c.validated || false, error: null, timestamp: c.timestamp });
-    }
+      return { id: 'r' + idx, photos, fiche: c.fiche, status: 'done', validated: c.validated || false, error: null, timestamp: c.timestamp };
+    }));
     setConstats(restored); setUngrouped([]); setSel(null); setScr('mission');
   };
 
@@ -449,10 +503,7 @@ export default function App() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
                     {ungrouped.map((p) => (
-                      <div key={p.id} onClick={() => { const n = new Set(selUG); n.has(p.id) ? n.delete(p.id) : n.add(p.id); setSelUG(n); }}
-                        style={{ aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer', border: selUG.has(p.id) ? `2px solid ${accent}` : '2px solid transparent', opacity: selUG.has(p.id) ? 1 : 0.7 }}>
-                        <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
+                      <PhotoCell key={p.id} photo={p} selected={selUG.has(p.id)} onToggle={togglePhotoSel} />
                     ))}
                   </div>
                 </div>
@@ -461,7 +512,7 @@ export default function App() {
               {/* Constats list */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
                 {constats.length > 0 && <div style={{ fontSize: 10, color: tx2, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 6, padding: '0 4px' }}>Constats ({constats.length})</div>}
-                {constats.map((c, i) => <ConstatCard key={c.id} constat={c} index={i} selected={sel === i} onClick={() => setSel(i)} />)}
+                {constats.map((c, i) => <ConstatCard key={c.id} constat={c} index={i} selected={sel === i} onSelect={handleSelect} />)}
                 {constats.length === 0 && ungrouped.length === 0 && <div style={{ textAlign: 'center', padding: 32, color: tx2, fontSize: 13 }}>Importez les photos de votre mission</div>}
               </div>
 
